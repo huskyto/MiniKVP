@@ -1,4 +1,5 @@
 
+use std::fs::File;
 use std::collections::HashMap;
 
 use crate::model::InMemoryEntry;
@@ -6,7 +7,8 @@ use crate::model::InMemoryEntry;
 
 pub struct Engine {
     path: String,
-    entries: HashMap<String, InMemoryEntry>
+    file_handle: File,
+    entries: HashMap<String, InMemoryEntry>,
 }
 impl Engine {
             // LIFECYCLE //
