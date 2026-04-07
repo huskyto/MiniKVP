@@ -1,7 +1,5 @@
 
-use std::fs;
 use std::fs::File;
-use std::fs::OpenOptions;
 use std::io::Seek;
 use std::io::Read;
 use std::io::Error;
@@ -11,11 +9,14 @@ use std::io::SeekFrom;
 use crate::model::OnDiskEntry;
 
 
-pub fn read_store_str(path: &str) -> Result<Vec<u8>, Error> {
-    fs::read(path)
+pub fn read_full_store(file: &mut File) -> Result<Vec<u8>, ParseError> {
+    let mut buffer = Vec::new();
+    file.seek(SeekFrom::Start(0)).map_err(|_| ParseError::SeekError)?;
+    file.read_to_end(&mut buffer).map_err(|_| ParseError::ReadError)?;
+    Ok(buffer)
 }
 pub fn reset_store(path: &str) -> Result<(), Error> {
-    File::create(path).and_then(|_| Ok(()))
+    File::create(path).map(|_| ())
 }
 pub fn get_at_offset(file: &mut File, offset: u64) -> Result<OnDiskEntry, ParseError> {
     let mut head_buffer = [0; 13];
@@ -57,12 +58,10 @@ pub fn get_at_offset(file: &mut File, offset: u64) -> Result<OnDiskEntry, ParseE
         value: val_buffer,
     })
 }
-pub fn append_to(path: &str, data: &[u8]) -> Result<(), Error> {
-    let mut file = OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open(path)?;
-    file.write_all(data)
+pub fn append_to(file: &mut File, data: &[u8]) -> Result<u64, Error> {
+    let len = file.metadata()?.len();
+    file.write_all(data)?;
+    Ok(len)
 }
 pub fn encode_entry(entry: &OnDiskEntry) -> Vec<u8> {
     let ks_bytes = entry.key_size.to_be_bytes();
@@ -82,6 +81,7 @@ pub fn encode_entry(entry: &OnDiskEntry) -> Vec<u8> {
     entry
 }
 
+#[derive(Debug)]
 pub enum ParseError {
     SizeMismatch,
     KeyEncodeError,
