@@ -16,11 +16,20 @@ pub struct OnDiskEntry {
 impl OnDiskEntry {
     pub fn from_new_entry(entry: NewEntry) -> Self {
         Self {
-            key_size: entry.key.as_bytes().len() as u32,
+            key_size: entry.key.len() as u32,
             value_size: entry.value.len() as u64,
             flags: 0,
             key: entry.key,
             value: entry.value,
+        }
+    }
+    pub fn tombstone_for(ime: &InMemoryEntry) -> Self {
+        Self {
+            key_size: ime.key.len() as u32,
+            value_size: 0,
+            flags: 0x01,
+            key: ime.key.clone(),
+            value: vec![],
         }
     }
 }
