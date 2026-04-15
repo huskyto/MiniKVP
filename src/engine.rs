@@ -166,6 +166,49 @@ impl Engine {
         Ok(())
     }
 
+    /// Iterates through every entry in the log file in order, including tombstones.
+    ///
+    /// Returns `(offset, entry)` pairs. Useful for inspecting the raw on-disk
+    /// structure of the store without filtering out deleted entries.
+    pub fn scan_log(&mut self) -> Result<Vec<(u64, OnDiskEntry)>, EngineError> {
+        let data = io::read_full_store(&mut self.file_handle)
+                .map_err(|e| EngineError::CorruptStore(e.to_string()))?;
+
+        let mut entries = Vec::new();
+        let mut offset = 0usize;
+
+        while offset + 13 <= data.len() {
+            let ks_data: [u8; 4] = data[offset..offset + 4].try_into()
+                    .map_err(|e: TryFromSliceError| EngineError::CorruptStore(e.to_string()))?;
+            let ds_data: [u8; 8] = data[offset + 4..offset + 12].try_into()
+                    .map_err(|e: TryFromSliceError| EngineError::CorruptStore(e.to_string()))?;
+            let key_size = u32::from_be_bytes(ks_data);
+            let value_size = u64::from_be_bytes(ds_data);
+            let flags = data[offset + 12];
+
+            let entry_size = (13 + key_size as u64)
+                    .checked_add(value_size)
+                    .ok_or_else(|| EngineError::CorruptStore("integer overflow computing entry size".to_string()))?;
+            if data.len() < entry_size as usize + offset {
+                return Err(EngineError::TruncatedStore);
+            }
+
+            let key_start = offset + 13;
+            let key_end = key_start + key_size as usize;
+            let val_end = key_end + value_size as usize;
+
+            let key = String::from_utf8(data[key_start..key_end].to_vec())
+                    .map_err(|e| EngineError::CorruptStore(e.to_string()))?;
+            let value = data[key_end..val_end].to_vec();
+
+            entries.push((offset as u64, OnDiskEntry { key_size, value_size, flags, key, value }));
+
+            offset += entry_size as usize;
+        }
+
+        Ok(entries)
+    }
+
     fn replay_store(data: &[u8]) -> Result<HashMap<String, InMemoryEntry>, EngineError> {
         let mut res = HashMap::new();
         if data.is_empty() {
