@@ -88,6 +88,16 @@ Updates create a new log entry.
 0-6: Reserved.
 7: Deleted.
 
+**On-disk layout** (all multi-byte fields are big-endian):
+
+```
+ 0               4               12      13
+ ├───────────────┼───────────────┼───────┼──────────────────┬─────────────────┐
+ │    KeySize    │   ValueSize   │ Flags │       Key        │      Value      │
+ │   (4b, u32)   │   (8b, u64)   │ (1b)  │  (KeySize bytes) │(ValueSize bytes)│
+ └───────────────┴───────────────┴───────┴──────────────────┴─────────────────┘
+```
+
 ## Operations
 
 All operations return a Result, which includes simple error details, if one occurred.
