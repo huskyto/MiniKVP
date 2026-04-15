@@ -115,7 +115,7 @@ pub enum ParseError {
     ReadError(Error),
     /// The key bytes are not valid UTF-8.
     #[error("Key contains invalid UTF-8: {0}")]
-    StringParseError(#[from] FromUtf8Error),
+    Utf8(#[from] FromUtf8Error),
 }
 
 

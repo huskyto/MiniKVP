@@ -78,7 +78,8 @@ impl Engine {
 
     /// Releases the file lock held by this engine.
     ///
-    /// Call this when you are done with the store to cleanly release the lock.
+    /// The lock is also released automatically when the engine is dropped, but
+    /// calling `close` gives you the chance to handle any error that occurs.
     pub fn close(&mut self) -> Result<(), EngineError> {
         self.file_handle.unlock()?;
         Ok(())
@@ -253,6 +254,11 @@ impl Engine {
         }
 
         Ok(res)
+    }
+}
+impl Drop for Engine {
+    fn drop(&mut self) {
+        let _ = self.file_handle.unlock();
     }
 }
 

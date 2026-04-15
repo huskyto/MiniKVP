@@ -203,7 +203,7 @@ fn format_value(bytes: &[u8], max: usize) -> String {
 }
 
 fn decode_hex(s: &str) -> Result<Vec<u8>, String> {
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err("hex string must have an even number of characters".to_string());
     }
     (0..s.len())
@@ -229,8 +229,8 @@ fn print_inspect_table(entries: &[(u64, OnDiskEntry)]) {
 
     // Header
     println!(
-        "{:>KEY_SZ_W$}{SEP}{:>VAL_SZ_W$}{SEP}{:<FLAGS_W$}{SEP}{:<key_w$}{SEP}{}",
-        "KeySz", "ValSz", "Flags", "Key", "Value",
+        "{:>KEY_SZ_W$}{SEP}{:>VAL_SZ_W$}{SEP}{:<FLAGS_W$}{SEP}{:<key_w$}{SEP}Value",
+        "KeySz", "ValSz", "Flags", "Key",
     );
 
     // Separator
