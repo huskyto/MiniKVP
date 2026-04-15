@@ -83,7 +83,7 @@ fn all_live_keys_are_restored_after_reopen() {
     e.close().unwrap();
 
     let mut e = Engine::open(&path).unwrap();
-    let mut keys = e.get_all_keys().unwrap();
+    let mut keys = e.get_all_keys();
     keys.sort();
     assert_eq!(keys, vec!["a", "b", "c"]);
     e.close().unwrap();
@@ -103,7 +103,7 @@ fn reset_store_and_reopen_gives_an_empty_store() {
     e.close().unwrap();
 
     let mut e = Engine::open(&path).unwrap();
-    assert!(e.get_all_keys().unwrap().is_empty());
+    assert!(e.get_all_keys().is_empty());
     e.close().unwrap();
 
     std::fs::remove_file(&path).unwrap();
@@ -170,7 +170,7 @@ fn all_values_readable_after_many_keys_survive_reopen() {
         let expected = format!("value_{}", i);
         assert_eq!(e.get(&format!("key_{}", i)).unwrap(), expected.as_bytes());
     }
-    assert_eq!(e.get_all_keys().unwrap().len(), n);
+    assert_eq!(e.get_all_keys().len(), n);
     e.close().unwrap();
 
     std::fs::remove_file(&path).unwrap();
@@ -181,7 +181,7 @@ fn store_opened_on_empty_file_contains_no_keys() {
     let path = temp_path("open_empty");
 
     let mut e = Engine::open(&path).unwrap();
-    assert!(e.get_all_keys().unwrap().is_empty());
+    assert!(e.get_all_keys().is_empty());
     e.close().unwrap();
 
     std::fs::remove_file(&path).unwrap();

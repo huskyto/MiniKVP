@@ -148,9 +148,8 @@ impl Engine {
     }
 
     /// Returns a list of all keys currently present in the store.
-    pub fn get_all_keys(&self) -> Result<Vec<String>, EngineError> {
-        let keys = self.entries.keys().cloned().collect();
-        Ok(keys)
+    pub fn get_all_keys(&self) -> Vec<String> {
+        self.entries.keys().cloned().collect()
     }
 
     /// Erases all data in the store file and clears the in-memory index.
@@ -381,7 +380,7 @@ mod tests {
         engine.set("drop", b"2").unwrap();
         engine.delete("drop").unwrap();
 
-        let keys = engine.get_all_keys().unwrap();
+        let keys = engine.get_all_keys();
         assert_eq!(keys, vec!["keep"]);
 
         engine.close().unwrap();
@@ -393,7 +392,7 @@ mod tests {
         let path = temp_path();
         let mut engine = Engine::open(&path).unwrap();
 
-        assert!(engine.get_all_keys().unwrap().is_empty());
+        assert!(engine.get_all_keys().is_empty());
 
         engine.close().unwrap();
         std::fs::remove_file(&path).unwrap();
@@ -408,7 +407,7 @@ mod tests {
         engine.set("b", b"2").unwrap();
         engine.set("c", b"3").unwrap();
 
-        let mut keys = engine.get_all_keys().unwrap();
+        let mut keys = engine.get_all_keys();
         keys.sort();
         assert_eq!(keys, vec!["a", "b", "c"]);
 
@@ -425,7 +424,7 @@ mod tests {
         engine.set("b", b"2").unwrap();
         engine.reset_store().unwrap();
 
-        assert!(engine.get_all_keys().unwrap().is_empty());
+        assert!(engine.get_all_keys().is_empty());
         assert!(matches!(engine.get("a"), Err(EngineError::NoSuchKey)));
         assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
 

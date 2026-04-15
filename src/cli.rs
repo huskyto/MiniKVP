@@ -135,10 +135,7 @@ pub fn run() {
             }
         }
         Some(("keys", _)) => {
-            let mut keys = engine.get_all_keys().unwrap_or_else(|e| {
-                eprintln!("error: {}", e);
-                process::exit(1);
-            });
+            let mut keys = engine.get_all_keys();
             if keys.is_empty() {
                 println!("(store is empty)");
             } else {
