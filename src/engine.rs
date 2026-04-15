@@ -1,22 +1,50 @@
 
+use std::path::Path;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::path::Path;
 use std::collections::HashMap;
 
+use thiserror::Error;
+
 use crate::io;
+use crate::model::InMemoryEntry;
 use crate::model::NewEntry;
 use crate::model::OnDiskEntry;
-use crate::model::InMemoryEntry;
 
 
+/// The core key-value store engine.
+///
+/// `Engine` manages an append-only log file on disk and a compact in-memory
+/// index that maps each key to the byte offset of its latest entry in the log.
+/// 
+/// The index is reconstructed by replaying the log on [`Engine::open`].
+///
+/// # Example
+///
+/// ```no_run
+/// use minikvp::engine::Engine;
+///
+/// let mut engine = Engine::open("my_store.kvp")?;
+/// engine.set("hello", b"world")?;
+/// let value = engine.get("hello")?;
+/// assert_eq!(value, b"world");
+/// engine.close()?;
+/// ```
 pub struct Engine {
     path: String,
     file_handle: File,
     entries: HashMap<String, InMemoryEntry>,
 }
+
 impl Engine {
             // LIFECYCLE //
+
+    /// Opens the store at `path`, creating the file if it does not exist.
+    ///
+    /// The in-memory index is populated by replaying the on-disk log from the beginning.
+    /// Startup time grows linearly with the size of the log file.
+    ///
+    /// Returns an [`EngineError`] if the file cannot be opened or the log is malformed.
     pub fn open(path: &str) -> Result<Engine, EngineError> {
         let p = Path::new(path);
         if !p.exists() {
@@ -45,11 +73,20 @@ impl Engine {
 
         Ok(engine)
     }
+
+    /// Releases the file lock held by this engine.
+    ///
+    /// Call this when you are done with the store to cleanly release the lock.
     pub fn close(&mut self) -> Result<(), EngineError> {
         self.file_handle.unlock()
                 .map_err(|_| EngineError::IOError)
     }
+
             // ACTIONS //
+
+    /// Returns the value stored for `key`.
+    ///
+    /// Returns [`EngineError::NoSuchKey`] if the key does not exist or has been deleted.
     pub fn get(&mut self, key: &str) -> Result<Vec<u8>, EngineError> {
         let offset = match self.entries.get(key) {
             Some(ime) => {
@@ -64,6 +101,10 @@ impl Engine {
         Ok(ode.value)
     }
 
+    /// Writes `value` for `key`, appending a new log entry to the store file.
+    ///
+    /// If `key` already holds the same `value`, the write is skipped to avoid
+    /// creating unnecessary log entries.
     pub fn set(&mut self, key: &str, value: &[u8]) -> Result<(), EngineError> {
         if let Ok(cv) = self.get(key) && cv == value {
             // Value has not changed. Avoid creating new entry.
@@ -85,6 +126,11 @@ impl Engine {
         Ok(())
     }
 
+    /// Removes `key` from the store.
+    ///
+    /// Deletion appends a tombstone entry to the log and removes the key from
+    /// the in-memory index. Returns [`EngineError::NoSuchKey`] if the key does
+    /// not exist.
     pub fn delete(&mut self, key: &str) -> Result<(), EngineError> {
         let removed = self.entries.remove(key);
         let ime = match removed {
@@ -100,11 +146,16 @@ impl Engine {
         Ok(())
     }
 
+    /// Returns a list of all keys currently present in the store.
     pub fn get_all_keys(&self) -> Result<Vec<String>, EngineError> {
         let keys = self.entries.keys().cloned().collect();
         Ok(keys)
     }
 
+    /// Erases all data in the store file and clears the in-memory index.
+    ///
+    /// This is the only way to reclaim space from old log entries, since
+    /// MiniKVP does not perform log compaction.
     pub fn reset_store(&mut self) -> Result<(), EngineError> {
         self.file_handle.unlock()
                 .map_err(|_| EngineError::IOError)?;
@@ -165,10 +216,19 @@ impl Engine {
     }
 }
 
-#[derive(Debug)]
+/// Errors that can be returned by [`Engine`] operations.
+#[derive(Debug, Error)]
 pub enum EngineError {
+    /// No entry exists for the given key.
+    #[error("No entry exists for the given key")]
     NoSuchKey,
+    /// An IO error occurred while accessing the store file.
+    #[error("IO error while accessing the store file")]
     IOError,
+    /// The store file contains unexpected or invalid data.
+    #[error("Store file is corrupted or contains invalid data")]
     StoreError,
-    TruncatedStore
+    /// The store file ends mid-entry.
+    #[error("Store file is truncated")]
+    TruncatedStore,
 }

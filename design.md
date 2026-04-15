@@ -78,12 +78,15 @@ No explicit limit is set by MiniKVP on either keys or values.
 File is append-only.
 Updates create a new log entry.
 
-- KeySize: u64.
+- KeySize: u32.
 - ValueSize: u64.
-- Deleted: bool.
+- Flags: u8.
 - Key: String.
 - Value: [u8].
 
+**Flags**:
+0-6: Reserved.
+7: Deleted.
 
 ## Operations
 
